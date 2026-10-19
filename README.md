@@ -52,8 +52,18 @@ result = client.validate("LICENCE-KEY-HERE", product="my-plugin", host="server-0
 
 ### `validate(license_key, **context) -> ValidationResult`
 
-Returns a named tuple with `valid` (`bool`), `status` (`int`) and `data` (parsed JSON or
-`None`).
+Returns a named tuple with `valid` (`bool`), `status` (`int`) and `data` (the parsed JSON body,
+the body as text when it isn't JSON, or `None` when it's empty).
+
+Requests carry the header `User-Agent: sunlicense-python/<version>`.
+
+## Changelog
+
+- **0.0.2**: send a `sunlicense-python/<version>` User-Agent. 0.0.1 sent urllib's default
+  (`Python-urllib/3.x`), which Cloudflare in front of `api.sunlicense.com` refuses with
+  `403` and the text body `error code: 1010`, so every validation failed. A body that isn't JSON
+  is now returned as text in `data` instead of `None`.
+- **0.0.1**: first release.
 
 ## Requirements
 
