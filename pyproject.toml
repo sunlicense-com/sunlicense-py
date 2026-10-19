@@ -1,6 +1,6 @@
 [project]
 name = "sunlicense"
-version = "0.0.1"
+version = "0.0.2"
 description = "Official SunLicense client for Python — licence key management and validation for indie software developers."
 readme = "README.md"
 requires-python = ">=3.8"
