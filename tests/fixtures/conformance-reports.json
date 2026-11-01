@@ -1,0 +1,84 @@
+{
+  "about": "Spec 185 §4.8: report bodies and the normalised values the server counts for them. SDKs (#193) send the request side; NormalisationTest checks the server. 'licensed' and 'country' are how the report arrived (API key, cf-ipcountry).",
+  "cases": [
+    {
+      "name": "Java plugin on Paper, Linux arm64",
+      "licensed": true,
+      "country": "DE",
+      "report": {
+        "schema": 1, "licenseKey": "AX8P-4Q2M-9KZL-7TBD", "fingerprint": "f3c1e2",
+        "sdk": {"name": "java", "version": "1.4.0"},
+        "metrics": {"productVersion": "v2.3.1 (build 7)", "os": "Linux", "osVersion": "5.15.0-1051-oracle", "arch": "aarch64",
+                    "cores": 4, "locale": "en_US", "runtime": "java", "runtimeVersion": "21.0.4",
+                    "platform": "paper", "platformVersion": "1.21.1-R0.1-SNAPSHOT"}
+      },
+      "expect": {"installs": "all", "licensed": "licensed", "productVersion": "2.3.1", "os": "Linux", "osVersion": "Linux 5.15",
+                 "arch": "arm64", "cores": "4", "locale": "en-US", "runtime": "java", "runtimeVersion": "java 21",
+                 "platform": "paper", "platformVersion": "paper 1.21.1", "country": "DE", "sdk": "java 1.4"}
+    },
+    {
+      "name": "Java 8 on Windows 11, standalone",
+      "licensed": true,
+      "country": "US",
+      "report": {
+        "licenseKey": "K", "fingerprint": "f",
+        "sdk": {"name": "java", "version": "1.4"},
+        "metrics": {"productVersion": "1.0", "os": "Windows 11", "osVersion": "10.0", "arch": "amd64", "cores": "16",
+                    "locale": "de_DE.UTF-8", "runtime": "Java", "runtimeVersion": "1.8.0_392", "platform": "standalone"}
+      },
+      "expect": {"installs": "all", "licensed": "licensed", "productVersion": "1.0", "os": "Windows", "osVersion": "Windows 11",
+                 "arch": "x86_64", "cores": "16", "locale": "de-DE", "runtime": "java", "runtimeVersion": "java 8",
+                 "platform": "standalone", "country": "US", "sdk": "java 1.4"}
+    },
+    {
+      "name": "Node bot on macOS, unlicensed, no country",
+      "licensed": false,
+      "country": "XX",
+      "report": {
+        "productAnalyticsId": "pa_7Hk2mQ9xZr4LbN8vT1wYcD", "installId": "0b8e5c9a-3f1d-4e7a-9c55-2d8f1e6a7b40",
+        "sdk": {"name": "js", "version": "2.0.1"},
+        "metrics": {"productVersion": "V3.0.0-beta.2", "os": "Mac OS X", "osVersion": "14.5", "arch": "arm64", "cores": 128,
+                    "locale": "fr", "runtime": "node", "runtimeVersion": "v20.11.1", "platform": "discord"}
+      },
+      "expect": {"installs": "all", "licensed": "unlicensed", "productVersion": "3.0.0-beta.2", "os": "macOS", "osVersion": "macOS 14.5",
+                 "arch": "arm64", "cores": "64+", "locale": "fr", "runtime": "node", "runtimeVersion": "node 20",
+                 "platform": "discord", "sdk": "js 2.0"}
+    },
+    {
+      "name": "Python on Windows Server, FiveM-like platform with build",
+      "licensed": false,
+      "country": "GB",
+      "report": {
+        "productAnalyticsId": "pa_x", "installId": "abcdefgh",
+        "metrics": {"os": "Windows Server 2022", "osVersion": "10.0", "arch": "x86", "runtime": "python", "runtimeVersion": "3.12.1",
+                    "platform": "fivem", "platformVersion": "7290 linux"}
+      },
+      "expect": {"installs": "all", "licensed": "unlicensed", "os": "Windows", "osVersion": "Windows Server 2022", "arch": "x86",
+                 "runtime": "python", "runtimeVersion": "python 3.12", "platform": "fivem", "platformVersion": "fivem 7290",
+                 "country": "GB"}
+    },
+    {
+      "name": "Odd values are dropped, not guessed",
+      "licensed": false,
+      "country": "T1",
+      "report": {
+        "productAnalyticsId": "pa_x", "installId": "abcdefgh",
+        "metrics": {"os": "Plan 9", "osVersion": "fourth edition", "arch": "riscv64", "cores": 0, "locale": "not a locale",
+                    "runtime": "Lua JIT!", "runtimeVersion": "5.4", "platform": "", "platformVersion": "1.0"}
+      },
+      "expect": {"installs": "all", "licensed": "unlicensed", "os": "Other", "arch": "riscv64"}
+    },
+    {
+      "name": "FreeBSD and armv7",
+      "licensed": true,
+      "country": "JP",
+      "report": {
+        "licenseKey": "K", "fingerprint": "f",
+        "metrics": {"os": "FreeBSD", "osVersion": "14.0-RELEASE", "arch": "armv7l", "locale": "ja-JP", "runtime": "lua",
+                    "runtimeVersion": "5.4.6"}
+      },
+      "expect": {"installs": "all", "licensed": "licensed", "os": "FreeBSD", "osVersion": "FreeBSD 14.0", "arch": "arm",
+                 "locale": "ja-JP", "runtime": "lua", "runtimeVersion": "lua 5", "country": "JP"}
+    }
+  ]
+}

@@ -13,8 +13,10 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, NamedTuple, Optional
 
-__version__ = "0.0.2"
-__all__ = ["SunLicense", "ValidationResult", "__version__"]
+from .analytics import SunLicenseAnalytics
+
+__version__ = "0.1.0"
+__all__ = ["SunLicense", "SunLicenseAnalytics", "ValidationResult", "__version__"]
 
 
 class ValidationResult(NamedTuple):
@@ -108,6 +110,26 @@ class SunLicense:
         except urllib.error.HTTPError as error:
             body = error.read().decode("utf-8", errors="replace")
             return ValidationResult(valid=False, status=error.code, data=_maybe_json(body))
+
+    def analytics(self, license_key: Any = None, fingerprint: Optional[str] = None, **options: Any) -> SunLicenseAnalytics:
+        """Starts built-in product analytics for a licensed product, with this client's base URL and API key:
+        a report every 30 minutes on a background thread (see :class:`SunLicenseAnalytics`). Never raises.
+
+        Args:
+            license_key: The license key you validate (or a callable returning it).
+            fingerprint: The machine id you validate with (``host``).
+            **options: Any :class:`SunLicenseAnalytics` option (``product_version``, ``enabled``,
+                ``product_analytics_id``, ``data_directory``, ...).
+        """
+        options.setdefault("base_url", self.base_url)
+        options.setdefault("api_key", self.token)
+        return SunLicenseAnalytics.start(license_key=license_key, fingerprint=fingerprint, **options)
+
+    @staticmethod
+    def analytics_for(product_analytics_id: str, **options: Any) -> SunLicenseAnalytics:
+        """Starts built-in product analytics for a free product with its public product analytics id
+        (Product -> Analytics in the dashboard). No license or API key needed. Never raises."""
+        return SunLicenseAnalytics.start(product_analytics_id=product_analytics_id, **options)
 
 
 def _maybe_json(body: str) -> Optional[Any]:
