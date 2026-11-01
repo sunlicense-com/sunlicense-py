@@ -241,3 +241,75 @@ class AnalyticsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UsageTest(unittest.TestCase):
+    def test_features_are_kept_until_stored(self):
+        transport = Recorder(503, "60")
+        a = make(product_analytics_id="pa_x", _transport=transport)
+        a.feature("auto-sell").feature("Auto-Sell", 2).feature("web-editor")
+        a.feature("bad name!").feature("x", 0).feature("y", 1.5).feature(42).feature("z", True)
+        self.assertEqual(a.send_now(), 503)
+        self.assertEqual(transport.seen[0]["body"]["features"], {"auto-sell": 3, "web-editor": 1})
+        a.feature("auto-sell")
+        transport.status = 204
+        self.assertEqual(a.send_now(), 204)
+        self.assertEqual(transport.seen[1]["body"]["features"], {"auto-sell": 4, "web-editor": 1})
+        a.send_now()
+        self.assertNotIn("features", transport.seen[2]["body"])
+        off = make(product_analytics_id="pa_x", enabled=False, _transport=transport)
+        off.feature("auto-sell")
+        self.assertEqual(off._features, {})
+
+    def test_at_most_50_features_per_report(self):
+        transport = Recorder()
+        a = make(product_analytics_id="pa_x", _transport=transport)
+        for i in range(60):
+            a.feature("f%d" % i)
+        a.send_now()
+        a.send_now()
+        self.assertEqual([len(s["body"]["features"]) for s in transport.seen], [50, 10])
+
+    def test_every_chart_type(self):
+        def raises():
+            raise RuntimeError("x")
+
+        transport = Recorder()
+        a = (
+            make(product_analytics_id="pa_x", _transport=transport)
+            .simple_pie("storage", lambda: "mysql")
+            .advanced_pie("modules", lambda: {"shop": 2, "auctions": 1, "zero": 0})
+            .drilldown_pie("java", lambda: {"Java 21": {"21.0.4": 1}, "empty": {}})
+            .single_line("players", lambda: 42)
+            .multi_line("worlds", lambda: {"overworld": 30, "nether": -2})
+            .simple_bar("commands", lambda: {"sell": 12})
+            .advanced_bar("tiers", lambda: {"gold": [1, 2, 3], "bad": [1, "x"]})
+            .simple_pie("nothing", lambda: None)
+            .simple_pie("empty", lambda: "  ")
+            .single_line("huge", lambda: 2 * 10 ** 9)
+            .simple_pie("throws", raises)
+            .simple_pie("Bad Id", lambda: "x")
+            .simple_pie("removed", lambda: "x")
+            .remove_chart("removed")
+        )
+        self.assertEqual(a.send_now(), 204)
+        self.assertEqual(transport.seen[0]["body"]["charts"], [
+            {"id": "storage", "type": "simple_pie", "data": {"value": "mysql"}},
+            {"id": "modules", "type": "advanced_pie", "data": {"values": {"shop": 2, "auctions": 1}}},
+            {"id": "java", "type": "drilldown_pie", "data": {"values": {"Java 21": {"21.0.4": 1}}}},
+            {"id": "players", "type": "single_line", "data": {"value": 42}},
+            {"id": "worlds", "type": "multi_line", "data": {"values": {"overworld": 30, "nether": -2}}},
+            {"id": "commands", "type": "simple_bar", "data": {"values": {"sell": 12}}},
+            {"id": "tiers", "type": "advanced_bar", "data": {"values": {"gold": [1, 2, 3]}}},
+        ])
+
+    def test_same_id_replaces_and_30_charts_at_most(self):
+        transport = Recorder()
+        a = make(product_analytics_id="pa_x", _transport=transport)
+        a.simple_pie("storage", lambda: "mysql").simple_pie("STORAGE", lambda: "sqlite")
+        for i in range(40):
+            a.single_line("c%d" % i, lambda i=i: i)
+        a.send_now()
+        charts = transport.seen[0]["body"]["charts"]
+        self.assertEqual(len(charts), 30)
+        self.assertEqual(charts[0], {"id": "storage", "type": "simple_pie", "data": {"value": "sqlite"}})

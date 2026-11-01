@@ -114,6 +114,9 @@ class SunLicenseAnalytics:
         self._first_delay = _first_delay
         self._collect = _collect
         self._sections: List[Any] = []
+        self._features: Dict[str, int] = {}
+        self._charts: Dict[str, Tuple[str, Callable[[], Any]]] = {}
+        self._sections.append(_UsageSection(self))
         self._closed = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._metrics: Optional[Dict[str, Any]] = None
@@ -146,6 +149,65 @@ class SunLicenseAnalytics:
             return self._send()[0]
         except Exception:  # noqa: BLE001
             return -1
+
+    def feature(self, name: str, uses: int = 1) -> "SunLicenseAnalytics":
+        """Counts uses of one of your product's features (``"auto-sell"``): ``uses`` (default 1) is added and
+        sent with the next report, and kept until a report is stored. Cheap, thread-safe, never raises;
+        nothing is counted while analytics is off. Names are lower-cased and must match
+        ``[a-z0-9][a-z0-9._-]{0,47}``."""
+        try:
+            key = chart_id(name)
+            if key and isinstance(uses, int) and not isinstance(uses, bool) and uses >= 1 and not self._opted_out():
+                with self._lock:
+                    self._features[key] = min(_MAX_NUMBER, self._features.get(key, 0) + uses)
+        except Exception:  # noqa: BLE001
+            pass
+        return self
+
+    def simple_pie(self, chart: str, callback: Callable[[], Optional[str]]) -> "SunLicenseAnalytics":
+        """A pie of one value per install: ``simple_pie("storage", lambda: config["storage"])``."""
+        return self._chart(chart, "simple_pie", callback)
+
+    def advanced_pie(self, chart: str, callback: Callable[[], Optional[Dict[str, int]]]) -> "SunLicenseAnalytics":
+        """A pie of weighted values per install: ``advanced_pie("modules", lambda: {"shop": 1})``."""
+        return self._chart(chart, "advanced_pie", callback)
+
+    def drilldown_pie(self, chart: str, callback: Callable[[], Optional[Dict[str, Dict[str, int]]]]) -> "SunLicenseAnalytics":
+        """A two-level pie: ``drilldown_pie("database", lambda: {"mysql": {"8.0": 1}})``."""
+        return self._chart(chart, "drilldown_pie", callback)
+
+    def single_line(self, chart: str, callback: Callable[[], Optional[int]]) -> "SunLicenseAnalytics":
+        """A number summed over installs: ``single_line("players", lambda: len(players))``."""
+        return self._chart(chart, "single_line", callback)
+
+    def multi_line(self, chart: str, callback: Callable[[], Optional[Dict[str, int]]]) -> "SunLicenseAnalytics":
+        """Several numbers per install, one line each: ``multi_line("worlds", lambda: {"overworld": 30})``."""
+        return self._chart(chart, "multi_line", callback)
+
+    def simple_bar(self, chart: str, callback: Callable[[], Optional[Dict[str, int]]]) -> "SunLicenseAnalytics":
+        """Numbers per category: ``simple_bar("commands", lambda: {"sell": 12})``."""
+        return self._chart(chart, "simple_bar", callback)
+
+    def advanced_bar(self, chart: str, callback: Callable[[], Optional[Dict[str, List[int]]]]) -> "SunLicenseAnalytics":
+        """Several numbers per category: ``advanced_bar("tiers", lambda: {"gold": [1, 2, 3]})``."""
+        return self._chart(chart, "advanced_bar", callback)
+
+    def remove_chart(self, chart: str) -> "SunLicenseAnalytics":
+        """Stops sending a custom chart."""
+        key = chart_id(chart)
+        with self._lock:
+            self._charts.pop(key, None)
+        return self
+
+    def _chart(self, chart: str, kind: str, callback: Any) -> "SunLicenseAnalytics":
+        key = chart_id(chart)
+        if not key or not callable(callback):
+            self._outcome("bad-chart", "chart id %r ignored: use [a-z0-9][a-z0-9._-]{0,47} and a callable" % (chart,))
+            return self
+        with self._lock:
+            self._charts.pop(key, None)  # the same id replaces the earlier one, at the end
+            self._charts[key] = (kind, callback)
+        return self
 
     def _add(self, section: Any) -> "SunLicenseAnalytics":
         """Something that adds to each report (feature usage, custom charts) and hears whether it was taken:
@@ -279,6 +341,110 @@ class SunLicenseAnalytics:
         if kind != self._last_outcome:
             self._last_outcome = kind
             _LOG.debug("SunLicense analytics: %s", message)
+
+
+_MAX_FEATURES = 50
+_MAX_CHARTS = 30
+_MAX_VALUES = 50
+_MAX_BAR = 20
+_MAX_NUMBER = 10 ** 9
+_ID = re.compile(r"^[a-z0-9][a-z0-9._-]{0,47}$")
+
+
+def chart_id(value: Any) -> Optional[str]:
+    """Feature names and chart ids: lower-cased, ``[a-z0-9][a-z0-9._-]{0,47}``, else None."""
+    if not isinstance(value, str):
+        return None
+    key = value.strip().lower()
+    return key if _ID.match(key) else None
+
+
+class _UsageSection:
+    """Feature usage (kept until a report is stored) and custom charts (callbacks run before each report)."""
+
+    def __init__(self, analytics: SunLicenseAnalytics) -> None:
+        self._analytics = analytics
+        self._sending: Optional[Dict[str, int]] = None
+
+    def write(self, report: Dict[str, Any]) -> None:
+        a = self._analytics
+        with a._lock:
+            features = dict(list(a._features.items())[:_MAX_FEATURES])
+            charts = list(a._charts.items())
+        self._sending = features or None
+        if features:
+            report["features"] = features
+        out = []
+        for key, (kind, callback) in charts:
+            if len(out) >= _MAX_CHARTS:
+                break
+            try:
+                data = chart_data(kind, callback())
+            except Exception:  # noqa: BLE001 - a callback that raises leaves its chart out
+                data = None
+            if data:
+                out.append({"id": key, "type": kind, "data": data})
+        if out:
+            report["charts"] = out
+
+    def sent(self, accepted: bool) -> None:
+        sending, self._sending = self._sending, None
+        if not accepted or not sending:
+            return
+        a = self._analytics
+        with a._lock:
+            for name, uses in sending.items():
+                left = a._features.get(name, 0) - uses
+                if left > 0:
+                    a._features[name] = left
+                else:
+                    a._features.pop(name, None)
+
+
+def _number(value: Any) -> Optional[int]:
+    if isinstance(value, int) and not isinstance(value, bool) and abs(value) <= _MAX_NUMBER:
+        return value
+    return None
+
+
+def _numbers(value: Any, minimum: int) -> Optional[Dict[str, int]]:
+    out: Dict[str, int] = {}
+    if isinstance(value, dict):
+        for k, v in value.items():
+            key = clean(k, 64)
+            if key and _number(v) is not None and v >= minimum and len(out) < _MAX_VALUES:
+                out[key] = v
+    return out or None
+
+
+def chart_data(kind: str, value: Any) -> Optional[Dict[str, Any]]:
+    """A chart callback's value as the report's ``data``, or None when there's nothing (valid) to send."""
+    if value is None:
+        return None
+    if kind == "simple_pie":
+        v = clean(value, 64) if isinstance(value, str) else None
+        return {"value": v} if v else None
+    if kind == "single_line":
+        return {"value": value} if _number(value) is not None else None
+    if kind in ("advanced_pie", "multi_line", "simple_bar"):
+        values = _numbers(value, 1 if kind == "advanced_pie" else -_MAX_NUMBER)
+        return {"values": values} if values else None
+    if kind == "drilldown_pie" and isinstance(value, dict):
+        out: Dict[str, Any] = {}
+        for outer, inner in value.items():
+            key, piece = clean(outer, 64), _numbers(inner, 1)
+            if key and piece and len(out) < _MAX_VALUES:
+                out[key] = piece
+        return {"values": out} if out else None
+    if kind == "advanced_bar" and isinstance(value, dict):
+        bars: Dict[str, Any] = {}
+        for k, items in value.items():
+            key = clean(k, 64)
+            nums = [_number(x) for x in list(items)[:_MAX_BAR]] if isinstance(items, (list, tuple)) else []
+            if key and nums and all(x is not None for x in nums) and len(bars) < _MAX_VALUES:
+                bars[key] = nums
+        return {"values": bars} if bars else None
+    return None
 
 
 def first_delay(rng: Any = None) -> float:
