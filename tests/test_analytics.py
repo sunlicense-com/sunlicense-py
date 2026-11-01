@@ -261,14 +261,35 @@ class UsageTest(unittest.TestCase):
         off.feature("auto-sell")
         self.assertEqual(off._features, {})
 
-    def test_at_most_50_features_per_report(self):
+    def test_at_most_50_different_features_and_off_drops_counts(self):
         transport = Recorder()
         a = make(product_analytics_id="pa_x", _transport=transport)
         for i in range(60):
             a.feature("f%d" % i)
+        a.feature("f0")
         a.send_now()
         a.send_now()
-        self.assertEqual([len(s["body"]["features"]) for s in transport.seen], [50, 10])
+        self.assertEqual(len(transport.seen[0]["body"]["features"]), 50)
+        self.assertEqual(transport.seen[0]["body"]["features"]["f0"], 2)
+        self.assertNotIn("features", transport.seen[1]["body"])
+        state = {"on": True}
+        b = make(product_analytics_id="pa_x", enabled=lambda: state["on"], _transport=transport)
+        b.feature("auto-sell")
+        state["on"] = False
+        self.assertEqual(b.send_now(), 0)
+        state["on"] = True
+        b.send_now()
+        self.assertNotIn("features", transport.seen[2]["body"])
+
+    def test_big_report_drops_charts_first_then_features(self):
+        transport = Recorder()
+        a = make(product_analytics_id="pa_x", _transport=transport)
+        for i in range(30):
+            a.advanced_pie("big%d" % i, lambda: {"v" * 40 + str(j): j + 1 for j in range(50)})
+        a.feature("kept")
+        self.assertEqual(a.send_now(), 204)
+        self.assertNotIn("charts", transport.seen[0]["body"])
+        self.assertEqual(transport.seen[0]["body"]["features"], {"kept": 1})
 
     def test_every_chart_type(self):
         def raises():
@@ -300,7 +321,7 @@ class UsageTest(unittest.TestCase):
             {"id": "players", "type": "single_line", "data": {"value": 42}},
             {"id": "worlds", "type": "multi_line", "data": {"values": {"overworld": 30, "nether": -2}}},
             {"id": "commands", "type": "simple_bar", "data": {"values": {"sell": 12}}},
-            {"id": "tiers", "type": "advanced_bar", "data": {"values": {"gold": [1, 2, 3]}}},
+            {"id": "tiers", "type": "advanced_bar", "data": {"values": {"gold": [1, 2, 3], "bad": [1]}}},
         ])
 
     def test_same_id_replaces_and_30_charts_at_most(self):

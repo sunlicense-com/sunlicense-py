@@ -157,8 +157,11 @@ class SunLicenseAnalytics:
         ``[a-z0-9][a-z0-9._-]{0,47}``."""
         try:
             key = chart_id(name)
-            if key and isinstance(uses, int) and not isinstance(uses, bool) and uses >= 1 and not self._opted_out():
+            if key and isinstance(uses, int) and not isinstance(uses, bool) and uses >= 1 and not self._closed.is_set() \
+                    and not self._opted_out():
                 with self._lock:
+                    if key not in self._features and len(self._features) >= _MAX_FEATURES:
+                        return self  # at most 50 different features
                     self._features[key] = min(_MAX_NUMBER, self._features.get(key, 0) + uses)
         except Exception:  # noqa: BLE001
             pass
@@ -237,6 +240,8 @@ class SunLicenseAnalytics:
         if self._closed.is_set():
             return 0, None
         if self._opted_out():
+            with self._lock:
+                self._features.clear()  # nothing is counted while it's off
             self._outcome("off", "analytics is switched off; nothing sent")
             return 0, None
         report = self._report()
@@ -244,6 +249,8 @@ class SunLicenseAnalytics:
             self._outcome("no-identity", "no license key yet and no product analytics id; nothing sent")
             return 0, None
         body = _json(report)
+        if len(body) > _MAX_BODY and report.pop("charts", None) is not None:  # charts go first, then features
+            body = _json(report)
         if len(body) > _MAX_BODY:
             for key in [k for k in report if k not in _CORE_KEYS]:
                 del report[key]
@@ -365,9 +372,11 @@ class _UsageSection:
     def __init__(self, analytics: SunLicenseAnalytics) -> None:
         self._analytics = analytics
         self._sending: Optional[Dict[str, int]] = None
+        self._report: Optional[Dict[str, Any]] = None
 
     def write(self, report: Dict[str, Any]) -> None:
         a = self._analytics
+        self._report = report
         with a._lock:
             features = dict(list(a._features.items())[:_MAX_FEATURES])
             charts = list(a._charts.items())
@@ -389,7 +398,7 @@ class _UsageSection:
 
     def sent(self, accepted: bool) -> None:
         sending, self._sending = self._sending, None
-        if not accepted or not sending:
+        if not accepted or not sending or "features" not in (self._report or {}):  # left out of a report over 16 KB
             return
         a = self._analytics
         with a._lock:
@@ -440,8 +449,12 @@ def chart_data(kind: str, value: Any) -> Optional[Dict[str, Any]]:
         bars: Dict[str, Any] = {}
         for k, items in value.items():
             key = clean(k, 64)
-            nums = [_number(x) for x in list(items)[:_MAX_BAR]] if isinstance(items, (list, tuple)) else []
-            if key and nums and all(x is not None for x in nums) and len(bars) < _MAX_VALUES:
+            nums: List[int] = []
+            for x in items if isinstance(items, (list, tuple)) else []:
+                if len(nums) >= _MAX_BAR or _number(x) is None:
+                    break  # up to 20 numbers, until the first that isn't one
+                nums.append(x)
+            if key and nums and len(bars) < _MAX_VALUES:
                 bars[key] = nums
         return {"values": bars} if bars else None
     return None
