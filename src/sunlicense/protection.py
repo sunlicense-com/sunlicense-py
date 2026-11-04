@@ -534,11 +534,11 @@ class SunLicenseProtection:
             raise Refused(401, "No license key")
         url = "%s/api/v2/protected-files/%s/%s" % (
             self.base_url, urllib.parse.quote(self.product_code, safe=""), urllib.parse.quote(name, safe=""))
-        headers = {"license": self.license_key, "User-Agent": self._user_agent}
+        headers = {"X-License-Key": self.license_key, "User-Agent": self._user_agent}
         if self.api_key:
             headers["Authorization"] = "Bearer " + self.api_key
         if self.fingerprint:
-            headers["fingerprint"] = self.fingerprint
+            headers["X-Fingerprint"] = self.fingerprint
         status, body = (self._get or self._http_get)(url, headers)
         if status == 200:
             return body

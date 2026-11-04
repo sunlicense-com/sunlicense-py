@@ -222,8 +222,8 @@ class ProtectionTest(unittest.TestCase):
         self.assertEqual(p.protected_file("rules.dat"), b"RULES")
         self.assertEqual(seen["url"], "https://api.example.test/api/v2/protected-files/my%20bot/rules.dat")
         self.assertEqual(seen["headers"]["Authorization"], "Bearer sk_test")
-        self.assertEqual(seen["headers"]["license"], KEY)
-        self.assertEqual(seen["headers"]["fingerprint"], "machine-1")
+        self.assertEqual(seen["headers"]["X-License-Key"], KEY)
+        self.assertEqual(seen["headers"]["X-Fingerprint"], "machine-1")
         answer.update(status=403, body=b'{"code":"SUSPENDED"}')
         with self.assertRaises(Refused) as e:
             p.protected_file("rules.dat")
