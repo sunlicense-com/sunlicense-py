@@ -14,9 +14,11 @@ import urllib.request
 from typing import Any, Dict, NamedTuple, Optional
 
 from .analytics import SunLicenseAnalytics
+from .protection import Locked, Refused, SunLicenseProtection, mask
 
-__version__ = "0.1.0"
-__all__ = ["SunLicense", "SunLicenseAnalytics", "ValidationResult", "__version__"]
+__version__ = "0.2.0"
+__all__ = ["SunLicense", "SunLicenseAnalytics", "SunLicenseProtection", "Locked", "Refused", "mask",
+           "ValidationResult", "__version__"]
 
 
 class ValidationResult(NamedTuple):
@@ -61,6 +63,7 @@ class SunLicense:
         # Without one, urllib sends "Python-urllib/3.x", which Cloudflare (in front of
         # api.sunlicense.com) refuses with 403 "error code: 1010" before the API sees it.
         self._user_agent = "sunlicense-python/" + __version__
+        self._protection: Optional[SunLicenseProtection] = None
 
     def validate(
         self,
@@ -84,6 +87,14 @@ class SunLicense:
             raise ValueError('SunLicense: "license_key" is required')
 
         payload: Dict[str, Any] = {"license": license_key, **context}
+        # With client.protection(...): send its integrity result, then let it keep (valid + unlock) or forget
+        # (valid: false) the unlock. Outages change nothing.
+        protection = self._protection
+        if protection is not None:
+            protection.license(license_key, context.get("fingerprint") or context.get("hwid") or context.get("host")
+                               or protection.fingerprint)
+            for k, v in protection.validate_fields().items():
+                payload.setdefault(k, v)
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
@@ -102,14 +113,32 @@ class SunLicense:
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 body = response.read().decode("utf-8", errors="replace")
-                return ValidationResult(
+                result = ValidationResult(
                     valid=200 <= response.status < 300,
                     status=response.status,
                     data=_maybe_json(body),
                 )
         except urllib.error.HTTPError as error:
             body = error.read().decode("utf-8", errors="replace")
-            return ValidationResult(valid=False, status=error.code, data=_maybe_json(body))
+            result = ValidationResult(valid=False, status=error.code, data=_maybe_json(body))
+        if protection is not None:
+            protection.accept(result.data)
+        return result
+
+    def protection(self, **options: Any) -> SunLicenseProtection:
+        """Core unlock, tamper reports, the ownership notice and protected files, with this client's base URL and API
+        key (see :class:`SunLicenseProtection`). Every later :meth:`validate` sends its integrity result and keeps or
+        forgets the unlock.
+
+        Args:
+            **options: ``license_key``, ``fingerprint``, ``product``, ``owner``, ``terms``, ``product_code``,
+                ``cache_directory``.
+        """
+        options.setdefault("base_url", self.base_url)
+        options.setdefault("api_key", self.token)
+        options.setdefault("user_agent", self._user_agent)
+        self._protection = SunLicenseProtection(**options)
+        return self._protection
 
     def analytics(self, license_key: Any = None, fingerprint: Optional[str] = None, **options: Any) -> SunLicenseAnalytics:
         """Starts built-in product analytics for a licensed product, with this client's base URL and API key:

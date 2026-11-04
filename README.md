@@ -59,6 +59,7 @@ Requests carry the header `User-Agent: sunlicense-python/<version>`.
 
 ## Changelog
 
+- **0.2.0**: core unlock, tamper reports, the ownership notice and protected files: `client.protection()`, `SunLicenseProtection`.
 - **0.1.0**: built-in product analytics (opt-out), feature usage and custom charts: `client.analytics()`, `SunLicense.analytics_for()`.
 - **0.0.2**: send a `sunlicense-python/<version>` User-Agent. 0.0.1 sent urllib's default
   (`Python-urllib/3.x`), which Cloudflare in front of `api.sunlicense.com` refuses with
@@ -106,6 +107,40 @@ at most 24 hours. Reporting never runs on the license check's path, never delays
 its own errors.
 
 Docs: https://docs.sunlicense.com/guide/sdks#built-in-analytics
+
+## Protection: core unlock, tamper reports, ownership notice
+
+`sunlicense seal <file> --product <code> [--digest <files>]` (the [CLI](https://docs.sunlicense.com/cli/)) encrypts
+part of your product, its *core*, on SunLicense's servers under a key only they hold, and prints the sealed text
+(`SLS1.…`) you ship. A valid license check answers with that key (`unlock`); a refused one (suspended, expired,
+revoked) doesn't, and this SDK forgets the one it had. So a copy whose license check was cut out can't run its core.
+The unlock from the last valid check is cached for 7 days (in `cache_directory`, default `~/.sunlicense`), encrypted under a key bound to the license key,
+the machine id and this machine, so outages don't stop your customers.
+
+```python
+client = SunLicense(base_url="https://api.sunlicense.com", token=os.environ["SUNLICENSE_API_KEY"])
+protection = client.protection(license_key=key, fingerprint=machine_id, product="My Bot",
+                               owner="Example Studio", terms="https://example.com/terms", cache_directory="data")
+print(protection.notice())                    # product, owner, masked key
+client.validate(key, fingerprint=machine_id)  # sends integrity, keeps or forgets the unlock
+core = protection.unseal(SEALED_CORE)         # bytes; raises Locked without a valid unlock
+protection.integrity(os.path.dirname(__file__))  # "OK" / "MODIFIED", sent with the next check
+```
+
+- `unseal(sealed)`: the core, or raises `Locked` without a valid unlock (or for data sealed for another product).
+- `integrity(...)`: compares the files whose digests were sealed with the core (`--digest`) with what is running;
+  `OK` or `MODIFIED` (with the changed files) is sent with the next check, where Sentinel sees it.
+- `notice()`: `My Bot is licensed software by Example Studio. License AX8P-XXXX-XXXX-XXXX. Terms: …`; never the full
+  key or the buyer's name.
+- `protection.protected_file(name)`: a file uploaded to the product (Standard plan), sent only while the license is valid.
+- `accept(body)` and `protection.validate_fields()`: for your own HTTP code; the client does both when you create the protection from it.
+- `accept_offline(file, public_key)`: the unlock from a valid [offline license file](https://docs.sunlicense.com/guide/offline-licenses) (needs `cryptography`).
+- Still no dependencies: AES-GCM uses `cryptography` when it's installed and a pure-Python implementation otherwise.
+
+Honest limit: someone with a valid license can still extract the unlock and patch their copy; that copy then fails
+its integrity check and is reported. Protection raises the cost and makes leaks visible. Wire format and test
+vectors: `tests/fixtures/protection-test-vectors.json` (a copy of SunLicense's); docs:
+https://docs.sunlicense.com/guide/protection
 
 ## Requirements
 

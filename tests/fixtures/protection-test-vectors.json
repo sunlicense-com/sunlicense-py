@@ -1,0 +1,165 @@
+{
+  "format": "sunlicense-protection-test-vectors/1",
+  "spec": "cloud/docs/specs/203-core-unlock.md (contract: product-setup-and-protection.md §4.6)",
+  "generatedBy": "cloud/scripts/protection-test-vectors.py; checked by common's ProtectionCryptoTest",
+  "algorithms": {
+    "productKey": "HKDF-SHA256 (RFC 5869): IKM = organization unlock secret (32 bytes, server only), salt = ASCII 'sunlicense/unlock/v1', info = ASCII product id (canonical lowercase UUID), L = 32. SDKs never derive it: they get the product key as base64 in `unlock`.",
+    "sealed": "'SLS1.' + base64url-nopad(nonce[12] || AES-256-GCM ciphertext || tag[16]); key = product key; AAD = ASCII 'SLS1'; plaintext = UTF-8 JSON {\"v\":1,\"digests\":{path: sha256hex},\"data\":\"<base64>\"}. Decoders accept base64url with or without padding and must reject any other prefix or a failed tag.",
+    "digest": "lowercase hex SHA-256 of the file's bytes; inputs may carry 'sha256:' and upper case. Digest a file that does not itself contain the sealed blob (e.g. the jar's classes, or the release built before the blob is embedded), or the digest can never match.",
+    "integrity": "the SDK compares a file's digest with the one in the blob and sends integrity: 'OK' or 'MODIFIED' (+ optional integrityDetail, at most 200 characters, e.g. the file names) with the next check."
+  },
+  "rfc5869TestCase1": {
+    "ikmHex": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+    "saltHex": "000102030405060708090a0b0c",
+    "infoHex": "f0f1f2f3f4f5f6f7f8f9",
+    "length": 42,
+    "okmHex": "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865"
+  },
+  "productKeys": [
+    {
+      "name": "org A, product A",
+      "orgSecretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "productId": "3f2a8c1e-5b7d-4e9a-8c61-0d2f4b6a9e10",
+      "saltAscii": "sunlicense/unlock/v1",
+      "infoAscii": "3f2a8c1e-5b7d-4e9a-8c61-0d2f4b6a9e10",
+      "productKeyHex": "c8952f230b7ceb161b68035422cc14bb8fb2069ffc1994cf943ccc2cd3a081d8",
+      "productKeyBase64": "yJUvIwt86xYbaANUIswUu4+yBp/8GZTPlDzMLNOggdg="
+    },
+    {
+      "name": "org A, product B",
+      "orgSecretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "productId": "0b9e4d27-91c3-4f58-a6e2-7c1d3b5f8a24",
+      "saltAscii": "sunlicense/unlock/v1",
+      "infoAscii": "0b9e4d27-91c3-4f58-a6e2-7c1d3b5f8a24",
+      "productKeyHex": "968e40736c346421505661328fc1e7c24b9e0366b3e37cd0face979dfa0b2d90",
+      "productKeyBase64": "lo5Ac2w0ZCFQVmEyj8HnwkueA2az43zQ+s6XnfoLLZA="
+    },
+    {
+      "name": "org B, product A",
+      "orgSecretHex": "7398b63d95173c30a4c75bf08cff22306e87df5a38fbff32acec9e1182e5e893",
+      "productId": "3f2a8c1e-5b7d-4e9a-8c61-0d2f4b6a9e10",
+      "saltAscii": "sunlicense/unlock/v1",
+      "infoAscii": "3f2a8c1e-5b7d-4e9a-8c61-0d2f4b6a9e10",
+      "productKeyHex": "dc080e396b49628b49f1c2f9074799540238c98f7b91acc58dd0ce4e676a4c69",
+      "productKeyBase64": "3AgOOWtJYotJ8cL5B0eZVAI4yY97kazFjdDOTmdqTGk="
+    }
+  ],
+  "sealed": [
+    {
+      "name": "text core with one digest",
+      "productKeyBase64": "yJUvIwt86xYbaANUIswUu4+yBp/8GZTPlDzMLNOggdg=",
+      "nonceHex": "000102030405060708090a0b",
+      "dataBase64": "cHVibGljIGZpbmFsIGNsYXNzIENvcmUgeyAvKiB0aGUgcGFydCB0aGF0IG9ubHkgcnVucyBsaWNlbnNlZCAqLyB9",
+      "digests": {
+        "plugin.jar": "d2b4c4fd28c4b70a5cb95e148b5cb1a0382b9ac8485e7e6ff3dc5f4da1c81299"
+      },
+      "plaintextUtf8": "{\"v\":1,\"digests\":{\"plugin.jar\":\"d2b4c4fd28c4b70a5cb95e148b5cb1a0382b9ac8485e7e6ff3dc5f4da1c81299\"},\"data\":\"cHVibGljIGZpbmFsIGNsYXNzIENvcmUgeyAvKiB0aGUgcGFydCB0aGF0IG9ubHkgcnVucyBsaWNlbnNlZCAqLyB9\"}",
+      "sealed": "SLS1.AAECAwQFBgcICQoLypokeeIpME81y5Hw6O0_PTqv71IDBEEwsaXEkMm0GkrmHYCRg83n2Y_bCRhk5rv1jHtNoZBJkfnTb5HZ3Tiqa4zlxGVkKHjmv_i6Wn1Bf5mGyz7DKF_guH57qCns8TXopLGJXJOPgTxQGRSY77R7cfQOKqrBzrP4o9ZCjLlsohF3TXFsYVUUz8847qwKL0DMA0qoOuLtDX2JboA-AMD6iPvT9fblA2kAnz1fm1fxj3Aj_-5Q-JuRfUcVT7xx0uj9U5m5Jm-f6aXAPSj0MtaSijNnUW5s"
+    },
+    {
+      "name": "binary data, no digests",
+      "productKeyBase64": "yJUvIwt86xYbaANUIswUu4+yBp/8GZTPlDzMLNOggdg=",
+      "nonceHex": "a1a2a3a4a5a6a7a8a9aaabac",
+      "dataBase64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/w==",
+      "digests": {},
+      "plaintextUtf8": "{\"v\":1,\"digests\":{},\"data\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/w==\"}",
+      "sealed": "SLS1.oaKjpKWmp6ipqqusbiIMG7svONdvdmIcOyDOyI06bUc4WYUil4KKSwYY9vdcM6-lmbf4h0EHgDh54MU3aHlY5F63VXy-k40FGHWCbmn2_WIxlvbWPaLaMvGwYVf4nAKbB5upLNYD8UJmAp_wYudRPyJWsX77dQ6DCT52x-GdIx8tFeZfckubLmtXY3L5sq6WVzNmvf2Np-hvdGb16l7WIz7K51E3wzdqFapeCneIKMuZTDHFP3dMKBndh4A-WAf3twGklffD6GO05L3_ZM73eX6cfiIjAgmHYis1Xut6WN81MJZ5zF0Q_VfoeamP8WRL-3nVTd8GfF5_2BGyYcnWaJ-E640vS__5DmAxMfFQZrPPt_UVOQXL8gM--n5Zlm7siEPf2JkVBb79iwr2SA4jB0Yac-EjqxbYrrsiRs1oBLUk7q10gx7p1VphXvVjPFdzOxwho3i6i64uXxNHtge19RmDmcHmHdqeM4MnSW88jkJZA6P-vYANscbO6BjUpegMU_fDLm51JeI3kBs-o-RZHfIu"
+    },
+    {
+      "name": "several digests, sorted by path",
+      "productKeyBase64": "yJUvIwt86xYbaANUIswUu4+yBp/8GZTPlDzMLNOggdg=",
+      "nonceHex": "ffeeddccbbaa998877665544",
+      "dataBase64": "eyJtYXhQbGF5ZXJzIjo2NH0=",
+      "digests": {
+        "Main.class": "0d6e4079e36703ebd37c00722f5891d28b0e2811dc114b129215123adcce3605",
+        "assets/rules.dat": "6c621d1a05138a7888d37d9269a9da8e2e11e4aced2f6cfd24b05ab1b9e61bb0",
+        "lib/util.jar": "9342af224fa264b0e961df75246597ee455cd08afe11b0a8cea6bb74dc59bf55"
+      },
+      "plaintextUtf8": "{\"v\":1,\"digests\":{\"Main.class\":\"0d6e4079e36703ebd37c00722f5891d28b0e2811dc114b129215123adcce3605\",\"assets/rules.dat\":\"6c621d1a05138a7888d37d9269a9da8e2e11e4aced2f6cfd24b05ab1b9e61bb0\",\"lib/util.jar\":\"9342af224fa264b0e961df75246597ee455cd08afe11b0a8cea6bb74dc59bf55\"},\"data\":\"eyJtYXhQbGF5ZXJzIjo2NH0=\"}",
+      "sealed": "SLS1._-7dzLuqmYh3ZlVEhPBRIL2Nh6o_-8DcEkmhIg2FvHJTiGq6eLfCjY8C2zX-s3wbyPniwXK_d3Y512LISQADZojQf7iPYLqjRUU7hVEOgu-YFFdpWobIY_3avujSi_pC0We7bGJr98n-OGj8Cub_fbDS7PkIHGZIVwnn-xtAEMPu2Vfo2e5DZKScV2pnuonW1g2ag9G5dlJekA-tQSs75Y3utwg-QP8mJuINEZa5PEw-dIkCHI09JLjhVYwmnV_Udv4rasB-eip_NxqfUSdUgeRq58J-vbXC98BqAdnV8m44gRuJCjZku6LWa0dssgFEG1F86qCA46b_l4QUalIgLCVhmYRp37I6Ca7WIkRBaeS0WKygR1YgU8Wa-WtP8y5nAVv__UYFEH_T5ak5avjeZskZQpLKMW-fZjAf_m-fD5THKqlYfsov7V0"
+    },
+    {
+      "name": "empty data",
+      "productKeyBase64": "yJUvIwt86xYbaANUIswUu4+yBp/8GZTPlDzMLNOggdg=",
+      "nonceHex": "0c0b0a090807060504030201",
+      "dataBase64": "",
+      "digests": {},
+      "plaintextUtf8": "{\"v\":1,\"digests\":{},\"data\":\"\"}",
+      "sealed": "SLS1.DAsKCQgHBgUEAwIBLMj6IF4I_6pvoaK8_p3IszE0nmaP7a9Jy33wTxlC3wztvNNeKnO2FFbLNVKckA"
+    }
+  ],
+  "mustFail": [
+    {
+      "name": "another product's key",
+      "productKeyBase64": "lo5Ac2w0ZCFQVmEyj8HnwkueA2az43zQ+s6XnfoLLZA=",
+      "sealed": "SLS1.AAECAwQFBgcICQoLypokeeIpME81y5Hw6O0_PTqv71IDBEEwsaXEkMm0GkrmHYCRg83n2Y_bCRhk5rv1jHtNoZBJkfnTb5HZ3Tiqa4zlxGVkKHjmv_i6Wn1Bf5mGyz7DKF_guH57qCns8TXopLGJXJOPgTxQGRSY77R7cfQOKqrBzrP4o9ZCjLlsohF3TXFsYVUUz8847qwKL0DMA0qoOuLtDX2JboA-AMD6iPvT9fblA2kAnz1fm1fxj3Aj_-5Q-JuRfUcVT7xx0uj9U5m5Jm-f6aXAPSj0MtaSijNnUW5s"
+    },
+    {
+      "name": "another organization's key",
+      "productKeyBase64": "3AgOOWtJYotJ8cL5B0eZVAI4yY97kazFjdDOTmdqTGk=",
+      "sealed": "SLS1.AAECAwQFBgcICQoLypokeeIpME81y5Hw6O0_PTqv71IDBEEwsaXEkMm0GkrmHYCRg83n2Y_bCRhk5rv1jHtNoZBJkfnTb5HZ3Tiqa4zlxGVkKHjmv_i6Wn1Bf5mGyz7DKF_guH57qCns8TXopLGJXJOPgTxQGRSY77R7cfQOKqrBzrP4o9ZCjLlsohF3TXFsYVUUz8847qwKL0DMA0qoOuLtDX2JboA-AMD6iPvT9fblA2kAnz1fm1fxj3Aj_-5Q-JuRfUcVT7xx0uj9U5m5Jm-f6aXAPSj0MtaSijNnUW5s"
+    },
+    {
+      "name": "one ciphertext bit flipped",
+      "productKeyBase64": "yJUvIwt86xYbaANUIswUu4+yBp/8GZTPlDzMLNOggdg=",
+      "sealed": "SLS1.AAECAwQFBgcICQoLypokeeIpME80y5Hw6O0_PTqv71IDBEEwsaXEkMm0GkrmHYCRg83n2Y_bCRhk5rv1jHtNoZBJkfnTb5HZ3Tiqa4zlxGVkKHjmv_i6Wn1Bf5mGyz7DKF_guH57qCns8TXopLGJXJOPgTxQGRSY77R7cfQOKqrBzrP4o9ZCjLlsohF3TXFsYVUUz8847qwKL0DMA0qoOuLtDX2JboA-AMD6iPvT9fblA2kAnz1fm1fxj3Aj_-5Q-JuRfUcVT7xx0uj9U5m5Jm-f6aXAPSj0MtaSijNnUW5s"
+    },
+    {
+      "name": "wrong prefix",
+      "productKeyBase64": "yJUvIwt86xYbaANUIswUu4+yBp/8GZTPlDzMLNOggdg=",
+      "sealed": "SLS2.AAECAwQFBgcICQoLypokeeIpME81y5Hw6O0_PTqv71IDBEEwsaXEkMm0GkrmHYCRg83n2Y_bCRhk5rv1jHtNoZBJkfnTb5HZ3Tiqa4zlxGVkKHjmv_i6Wn1Bf5mGyz7DKF_guH57qCns8TXopLGJXJOPgTxQGRSY77R7cfQOKqrBzrP4o9ZCjLlsohF3TXFsYVUUz8847qwKL0DMA0qoOuLtDX2JboA-AMD6iPvT9fblA2kAnz1fm1fxj3Aj_-5Q-JuRfUcVT7xx0uj9U5m5Jm-f6aXAPSj0MtaSijNnUW5s"
+    }
+  ],
+  "digests": [
+    {
+      "name": "file bytes",
+      "inputUtf8": "hello\n",
+      "sha256Hex": "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03"
+    },
+    {
+      "name": "plugin.jar above",
+      "inputBase64": "UEsDBCBwcmV0ZW5kIHRoaXMgaXMgcGx1Z2luLmphcg==",
+      "sha256Hex": "d2b4c4fd28c4b70a5cb95e148b5cb1a0382b9ac8485e7e6ff3dc5f4da1c81299"
+    },
+    {
+      "name": "accepted on input and normalised",
+      "input": "sha256:5891B5B522D5DF086D0FF0B110FBD9D21BB4FC7163AF34D08286A2E846F6BE03",
+      "normalised": "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03"
+    }
+  ],
+  "wire": {
+    "validateRequestV1": {
+      "licenseKey": "AX8P-XXXX-XXXX-XXXX",
+      "fingerprint": "machine-1",
+      "integrity": "MODIFIED",
+      "integrityDetail": "plugin.jar"
+    },
+    "validateResponseV1": {
+      "valid": true,
+      "code": "VALID",
+      "detail": "License is valid",
+      "expiresAt": null,
+      "machines": {
+        "used": 1,
+        "max": 3
+      },
+      "unlock": "yJUvIwt86xYbaANUIswUu4+yBp/8GZTPlDzMLNOggdg="
+    },
+    "compatRequestV2": {
+      "license": "AX8P-XXXX-XXXX-XXXX",
+      "hwid": "machine-1",
+      "integrity": "OK"
+    },
+    "compatResponseV2": {
+      "valid": true,
+      "status": 200,
+      "message": "License is valid",
+      "code": "VALID",
+      "expiresAt": null,
+      "unlock": "yJUvIwt86xYbaANUIswUu4+yBp/8GZTPlDzMLNOggdg="
+    },
+    "unlockPresentWhen": "the check is VALID, the license is ACTIVE and not expired, and the product has sealed data; absent otherwise (old SDKs ignore the field). Never present on a refused check.",
+    "offlineLicenseClaim": "the signed .lic payload (sunlicense-offline/1) gains \"unlock\": \"<base64 product key>\" for products with sealed data; verify the signature first, then read it.",
+    "sdkCache": "cache the last unlock bound to the machine (e.g. encrypted under a key from the fingerprint) for at most 7 days; drop it on a refused check (valid: false), keep it on outages."
+  }
+}
