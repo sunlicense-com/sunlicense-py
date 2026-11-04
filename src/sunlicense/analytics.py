@@ -40,7 +40,7 @@ __all__ = ["SunLicenseAnalytics", "SDK_NAME", "SDK_VERSION", "ENV_SWITCH"]
 
 #: Sent as ``sdk.name``/``sdk.version``; bump the version with each release.
 SDK_NAME = "python"
-SDK_VERSION = "0.1.0"
+SDK_VERSION = "0.2.0"
 DEFAULT_BASE_URL = "https://api.sunlicense.com"
 #: Environment variable that switches analytics off on a machine.
 ENV_SWITCH = "SUNLICENSE_ANALYTICS"

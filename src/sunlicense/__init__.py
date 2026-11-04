@@ -16,7 +16,7 @@ from typing import Any, Dict, NamedTuple, Optional
 from .analytics import SunLicenseAnalytics
 from .protection import Locked, Refused, SunLicenseProtection, mask
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = ["SunLicense", "SunLicenseAnalytics", "SunLicenseProtection", "Locked", "Refused", "mask",
            "ValidationResult", "__version__"]
 
